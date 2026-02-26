@@ -38,6 +38,8 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+import { Logo } from './components/Logo';
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -198,11 +200,9 @@ export default function App() {
       >
         <div className="h-16 flex items-center px-6 border-b border-[var(--color-border)]">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-stone-900 rounded-lg text-white shadow-md">
-              <BrainCircuit size={20} />
-            </div>
+            <Logo size={32} />
             <span className={cn("font-bold text-lg tracking-tight text-stone-900 transition-opacity duration-200", !isSidebarOpen && "lg:hidden")}>
-              CCaaS Intel
+              Seeker
             </span>
           </div>
         </div>
