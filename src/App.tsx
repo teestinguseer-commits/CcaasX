@@ -118,11 +118,12 @@ export default function App() {
         return res.json();
       } else {
         const text = await res.text();
+        console.error(`[safeFetch] Expected JSON but got: ${text.substring(0, 200)}...`);
         if (retries > 0) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 1500));
           return safeFetch(url, options, retries - 1);
         }
-        throw new Error(`Server not ready or endpoint not found`);
+        throw new Error(`Server returned unexpected response (not JSON). Please try again in a moment.`);
       }
     } catch (error) {
       if (retries > 0) {

@@ -31,7 +31,22 @@ if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "MY_GEMINI_API
 // Initialize Database
 let db;
 try {
+  // Try to use file-based DB first
   db = new Database("briefs.db");
+  console.log("Database initialized successfully (file-based).");
+} catch (err) {
+  console.warn("Failed to initialize file-based database, falling back to in-memory:", err);
+  try {
+    db = new Database(":memory:");
+    console.log("Database initialized successfully (in-memory).");
+  } catch (memErr) {
+    console.error("CRITICAL: Failed to initialize in-memory database:", memErr);
+    process.exit(1);
+  }
+}
+
+// Create tables
+try {
   db.exec(`
     CREATE TABLE IF NOT EXISTS briefs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,10 +55,8 @@ try {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  console.log("Database initialized successfully.");
 } catch (err) {
-  console.error("Failed to initialize database:", err);
-  process.exit(1);
+  console.error("Failed to create tables:", err);
 }
 
 function maskKey(key: string | undefined): string {
@@ -108,6 +121,11 @@ async function startServer() {
       console.log(`[API] ${req.method} ${req.path}`);
     }
     next();
+  });
+
+  // Health Check Endpoint
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", database: db ? "connected" : "disconnected" });
   });
 
   // API Routes
@@ -483,6 +501,11 @@ async function startServer() {
   } else {
     // In production, serve static files from dist
     app.use(express.static(path.join(__dirname, "dist")));
+    
+    // SPA Fallback: Serve index.html for any other route (client-side routing)
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(__dirname, "dist", "index.html"));
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
