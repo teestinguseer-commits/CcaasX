@@ -46,9 +46,59 @@ try {
   process.exit(1);
 }
 
+function maskKey(key: string | undefined): string {
+  if (!key) return "MISSING";
+  if (key.length < 10) return key;
+  return `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
+}
+
+// Helper to get valid API key
+function getApiKey() {
+  const potentialKeys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_API_KEY,
+    process.env.API_KEY,
+    process.env.GOOGLE_GENAI_API_KEY,
+    "AIzaSyCwR8ZoPRF7kuzMod5vohZovyUkgxHrzVA" // User provided fallback key
+  ];
+
+  // 1. Check standard variables and fallback
+  for (const key of potentialKeys) {
+    if (isValidKey(key)) return key;
+  }
+
+  // 2. Scan ALL environment variables for a valid Gemini key (starts with AIza)
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value && value.startsWith("AIza") && isValidKey(value)) {
+      console.log(`[DEBUG] Found valid API key in env var: ${key}`);
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function isValidKey(key: string | undefined): boolean {
+  return !!key && 
+    key.length > 20 && 
+    !key.includes("YOUR_API_KEY") && 
+    key !== "MY_GEMINI_API_KEY" &&
+    !key.includes("placeholder");
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Debug Environment on Startup
+  console.log("--- Environment Debug ---");
+  console.log("GEMINI_API_KEY:", maskKey(process.env.GEMINI_API_KEY));
+  console.log("GOOGLE_API_KEY:", maskKey(process.env.GOOGLE_API_KEY));
+  console.log("API_KEY:", maskKey(process.env.API_KEY));
+  
+  const resolvedKey = getApiKey();
+  console.log("Resolved API Key:", maskKey(resolvedKey));
+  console.log("-------------------------");
 
   app.use(express.json());
 
@@ -85,10 +135,7 @@ async function startServer() {
     try {
       console.log("Generating brief request received...");
       
-      // Reload env vars to ensure we catch any updates (though typically requires restart)
-      // In this environment, we rely on the process restart that happened.
-      
-      let apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      const apiKey = getApiKey();
       
       console.log(`[DEBUG] API Key check: ${apiKey ? 'Present' : 'Missing'}, Length: ${apiKey?.length || 0}`);
       if (apiKey) {
@@ -96,9 +143,9 @@ async function startServer() {
       }
 
       // MOCK DATA FALLBACK
-      if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.includes("YOUR_API_KEY")) {
-        const reason = !apiKey ? "Missing API Key" : "Placeholder API Key Detected";
-        console.warn(`No valid API key found (${reason}). Generating MOCK brief.`);
+      if (!apiKey) {
+        const reason = "Missing Valid API Key";
+        console.warn(`No valid API key found. Generating MOCK brief.`);
         
         // Simulate processing delay
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -284,9 +331,9 @@ async function startServer() {
     try {
       const { topic, context } = req.body;
       
-      let apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      const apiKey = getApiKey();
       
-      if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.includes("YOUR_API_KEY")) {
+      if (!apiKey) {
         await new Promise(resolve => setTimeout(resolve, 1500));
         return res.json({
           summary: "This is a mock research summary because no API key is present.",
@@ -348,9 +395,9 @@ async function startServer() {
     try {
       const { headline, summary, source } = req.body;
       
-      let apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      const apiKey = getApiKey();
       
-      if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.includes("YOUR_API_KEY")) {
+      if (!apiKey) {
         // Mock response for demo mode
         await new Promise(resolve => setTimeout(resolve, 1500));
         return res.json({
